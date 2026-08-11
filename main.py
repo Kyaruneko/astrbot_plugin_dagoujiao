@@ -17,6 +17,7 @@ class DagoujiaoPlugin(Star):
         """大狗叫/不叫：随机回复"叫"或"不叫"，各占一半概率。"""
         reply = random.choice(["叫", "不叫"])
         yield event.plain_result(reply) # 发送一条纯文本消息
+        event.stop_event() # 停止事件传播，防止后续再调用 LLM/AI Agent
 
     async def terminate(self):
         """可选择实现异步的插件销毁方法，当插件被卸载/停用时会调用。"""
