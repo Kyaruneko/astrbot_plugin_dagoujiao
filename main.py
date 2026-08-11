@@ -6,6 +6,8 @@ from astrbot.api.star import Context, Star, register
 from astrbot.api.message_components import Record
 
 # 图片 / 音频资源目录（本插件目录下的 images/ 与 audios/ 文件夹）
+# 音频为真 PCM wav（16bit 单声道 24kHz），发送时 ensure_wav() 会跳过 ffmpeg 转换，
+# 后续 silk 编码由纯 Python 的 pysilk 完成，因此服务器上无需安装 ffmpeg。
 IMAGE_DIR = os.path.join(os.path.dirname(__file__), "images")
 AUDIO_DIR = os.path.join(os.path.dirname(__file__), "audios")
 
@@ -18,7 +20,7 @@ def _audio(name: str) -> str:
     return os.path.join(AUDIO_DIR, name)
 
 
-@register("astrbot_plugin_dagoujiao", "Kyaruneko", "大狗大狗请叫叫", "1.5.0")
+@register("astrbot_plugin_dagoujiao", "Kyaruneko", "大狗大狗请叫叫", "1.6.0")
 class DagoujiaoPlugin(Star):
     def __init__(self, context: Context):
         super().__init__(context)
@@ -46,9 +48,9 @@ class DagoujiaoPlugin(Star):
             # 叫：细分 bb1（普通叫，文字"叫叫叫"）/ bb2（带劲的叫，文字"叫"），附对应语音
             bark_img = random.choices(["bb1.png", "bb2.jpg"], weights=[70, 30])[0]
             if bark_img == "bb1.png":
-                text, audio = "叫叫叫", "bb1.mp3"
+                text, audio = "叫叫叫", "bb1.wav"
             else:
-                text, audio = "叫", "bb2.mp3"
+                text, audio = "叫", "bb2.wav"
             yield event.image_result(_img(bark_img))  # 图片
             yield event.plain_result(text)  # 文字
             yield event.chain_result([Record.fromFileSystem(_audio(audio))])  # 语音
@@ -59,7 +61,7 @@ class DagoujiaoPlugin(Star):
             yield event.plain_result("不叫")  # 文字
             if nobb_img == "nobb1.png":
                 yield event.chain_result(  # 语音（nobb1 才有）
-                    [Record.fromFileSystem(_audio("nobb1.mp3"))],
+                    [Record.fromFileSystem(_audio("nobb1.wav"))],
                 )
         elif outcome == "mute":
             # mute：只发图片，发完就结束，无下文
