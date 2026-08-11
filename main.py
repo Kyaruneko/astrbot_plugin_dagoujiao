@@ -33,9 +33,9 @@ class DagoujiaoPlugin(Star):
         )[0]
 
         if outcome == "bark":
-            # 叫：细分 bb1（普通叫）/ bb2（带劲的叫），只发图片
+            # 叫：细分 bb1（普通叫）/ bb2（带劲的叫），发图片并说"叫"
             bark_img = random.choices(["bb1.png", "bb2.jpg"], weights=[70, 30])[0]
-            yield event.image_result(os.path.join(IMAGE_DIR, bark_img))
+            yield event.image_result(os.path.join(IMAGE_DIR, bark_img)).message("叫")
         elif outcome == "nobark":
             # 不叫：随机发一张 nobb 图片，然后说"不叫"
             nobb_img = random.choice(["nobb1.png", "nobb2.png"])
