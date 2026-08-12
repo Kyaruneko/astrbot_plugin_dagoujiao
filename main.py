@@ -14,6 +14,15 @@ AUDIO_DIR = os.path.join(os.path.dirname(__file__), "audios")
 # 兜底时"大狗递纸条"的概率（"有时会接着一句..."）
 NOTE_PROBABILITY = 0.5
 
+# 纸条内容：本插件/相关插件的使用指南
+NOTE_TEXT = (
+    "@大狗后，输入以下内容\n"
+    "今日运势---进行签到求运\n"
+    "开箱 数量 XXX箱---进行cs开箱\n"
+    "大狗大狗请叫叫---大狗叫\n"
+    "更多内容询问炸鱼哥"
+)
+
 
 def _img(name: str) -> str:
     return os.path.join(IMAGE_DIR, name)
@@ -23,7 +32,7 @@ def _audio(name: str) -> str:
     return os.path.join(AUDIO_DIR, name)
 
 
-@register("astrbot_plugin_dagoujiao", "Kyaruneko", "大狗大狗请叫叫", "1.9.0")
+@register("astrbot_plugin_dagoujiao", "Kyaruneko", "大狗大狗请叫叫", "1.9.1")
 class DagoujiaoPlugin(Star):
     def __init__(self, context: Context):
         super().__init__(context)
@@ -88,11 +97,9 @@ class DagoujiaoPlugin(Star):
         # 一般情况：一定回复 nobb2 图片
         yield event.image_result(_img("nobb2.png"))
 
-        # 有时会接着一句"大狗递过来一张纸条，上面写着：{消息内容}"
+        # 有时会递一张纸条，上面写着使用指南
         if random.random() < NOTE_PROBABILITY:
-            msg_text = event.get_message_str().strip()
-            if msg_text:
-                yield event.plain_result(f"大狗递过来一张纸条，上面写着：{msg_text}")
+            yield event.plain_result(f"大狗递过来一张纸条，上面写着：\n{NOTE_TEXT}")
 
         # 终止事件传播：这条消息已被兜底处理，不再让其他链路介入。
         event.stop_event()
