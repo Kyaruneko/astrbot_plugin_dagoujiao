@@ -11,6 +11,9 @@ from astrbot.api.star import Context, Star, register
 IMAGE_DIR = os.path.join(os.path.dirname(__file__), "images")
 AUDIO_DIR = os.path.join(os.path.dirname(__file__), "audios")
 
+# 兜底时"大狗递纸条"的概率（"有时会接着一句..."）
+NOTE_PROBABILITY = 0.5
+
 
 def _img(name: str) -> str:
     return os.path.join(IMAGE_DIR, name)
@@ -20,7 +23,7 @@ def _audio(name: str) -> str:
     return os.path.join(AUDIO_DIR, name)
 
 
-@register("astrbot_plugin_dagoujiao", "Kyaruneko", "大狗大狗请叫叫", "1.8.0")
+@register("astrbot_plugin_dagoujiao", "Kyaruneko", "大狗大狗请叫叫", "1.9.0")
 class DagoujiaoPlugin(Star):
     def __init__(self, context: Context):
         super().__init__(context)
@@ -28,7 +31,7 @@ class DagoujiaoPlugin(Star):
     async def initialize(self):
         """可选择实现异步的插件初始化方法，当实例化该插件类之后会自动调用该方法。"""
 
-    # 纯插件触发：消息以"大狗"开头（识别到这个梗）时，就直接由本插件随机做出反应。
+    # ===== 行为一：消息以"大狗"开头，本插件直接随机反应 =====
     # 完全不依赖 @ / 唤醒词，也不调用 AI Agent / 大模型，因此不会有任何模型人格插嘴回复，
     # 也不会产生 token 消耗。末尾的 stop_event() 会终止事件传播，确保后续 AI 链路彻底不介入。
     @filter.regex(r"^大狗")
@@ -68,6 +71,30 @@ class DagoujiaoPlugin(Star):
             yield event.plain_result("笑")
 
         # 终止事件传播：确保 AI Agent 不会介入，也就不会出现任何模型人格的回复。
+        event.stop_event()
+
+    # ===== 行为二：兜底处理器 =====
+    # 接收所有消息，但只在"没有任何其他插件 / Handler 处理"时才出场。
+    # priority 取一个很低的值，保证排在所有其他 handler 之后执行；此时若
+    # event._has_send_oper 仍为 False，说明前面的插件都没有回复这条消息，
+    # 就由大狗来"回应"：一般情况一定回 nobb2 图片（大狗不叫/不说话的图），
+    # 有时会接着递一张纸条，上面写着用户这条未被处理的消息内容。
+    @filter.regex(r".*", priority=-100)
+    async def on_fallback(self, event: AstrMessageEvent):
+        if event._has_send_oper:
+            # 前面的插件 / Handler 已经处理并发送了内容，不需要大狗出场。
+            return
+
+        # 一般情况：一定回复 nobb2 图片
+        yield event.image_result(_img("nobb2.png"))
+
+        # 有时会接着一句"大狗递过来一张纸条，上面写着：{消息内容}"
+        if random.random() < NOTE_PROBABILITY:
+            msg_text = event.get_message_str().strip()
+            if msg_text:
+                yield event.plain_result(f"大狗递过来一张纸条，上面写着：{msg_text}")
+
+        # 终止事件传播：这条消息已被兜底处理，不再让其他链路介入。
         event.stop_event()
 
     async def terminate(self):
