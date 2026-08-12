@@ -53,7 +53,7 @@ def _video_library_load() -> dict:
         return {"videos": []}
 
 
-@register("astrbot_plugin_dagoujiao", "Kyaruneko", "大狗大狗请叫叫", "1.11.0")
+@register("astrbot_plugin_dagoujiao", "Kyaruneko", "大狗大狗请叫叫", "1.11.1")
 class DagoujiaoPlugin(Star):
     def __init__(self, context: Context, config: dict | None = None):
         super().__init__(context)
@@ -90,7 +90,7 @@ class DagoujiaoPlugin(Star):
         event.stop_event()
 
     # ===== 视频库：大狗 音乐（随机抽一条发出来） =====
-    # 顺序：固定"大狗听音乐"图（images/music.png，主人提供，缺失则跳过）
+    # 顺序：固定"大狗听音乐"图（images/listen.png，主人素材里的固定状态图）
     #      → 视频封面 → 链接文字 → 试听语音（若有）。必须定义在 on_dagou 之前。
     @filter.regex(r"^大狗[ ]*音乐")
     @filter.event_message_type(EventMessageType.GROUP_MESSAGE)
@@ -103,7 +103,7 @@ class DagoujiaoPlugin(Star):
         v = random.choice(videos)
 
         # 1. 固定"大狗听音乐"图（状态图，同"叫/不叫"图片的性质）
-        music_img = _img(self._cfg("music_image", "music.png"))
+        music_img = _img(self._cfg("music_image", "listen.png"))
         if os.path.isfile(music_img):
             yield event.image_result(music_img)
         else:

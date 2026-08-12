@@ -8,7 +8,7 @@
   "music_image": {
     "type": "string",
     "description": "大狗听音乐的固定图片文件名",
-    "hint": "放在 images/ 目录下的文件名（默认 music.png），发送视频时先发这张图",
-    "default": "music.png"
+    "hint": "放在 images/ 目录下的文件名（默认 listen.png），发送视频时先发这张图",
+    "default": "listen.png"
   }
 }
