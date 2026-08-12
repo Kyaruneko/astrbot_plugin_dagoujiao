@@ -1,8 +1,8 @@
 {
   "owner_qq": {
     "type": "string",
-    "description": "主人QQ号",
-    "hint": "你的QQ号，只有这个号可以触发「大狗 更新视频库」",
+    "description": "主人身份标识(openid)",
+    "hint": "qq_official 不返回QQ号，这里填你的 openid（形如 B3DAEBEB...）。触发一次「更新视频库」被拒时，提示语会显示你的 openid，照抄填入即可",
     "default": ""
   },
   "music_image": {

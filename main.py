@@ -53,7 +53,7 @@ def _video_library_load() -> dict:
         return {"videos": []}
 
 
-@register("astrbot_plugin_dagoujiao", "Kyaruneko", "大狗大狗请叫叫", "1.11.1")
+@register("astrbot_plugin_dagoujiao", "Kyaruneko", "大狗大狗请叫叫", "1.11.2")
 class DagoujiaoPlugin(Star):
     def __init__(self, context: Context, config: dict | None = None):
         super().__init__(context)
@@ -70,18 +70,27 @@ class DagoujiaoPlugin(Star):
         """可选择实现异步的插件初始化方法，当实例化该插件类之后会自动调用该方法。"""
 
     # ===== 视频库：更新（仅主人） =====
-    @filter.regex(r"^大狗[ ]*更新视频库")
+    # 触发词：更新视频库（不含"大狗"前缀）。
+    # 注意：qq_official 平台不返回用户的可见 QQ 号，get_sender_id() 返回的是 openid
+    # （形如 B3DAEBEB...）。因此 owner_qq 里填的是这个 openid，不是数字 QQ 号；
+    # 触发一次更新指令，被拒提示语会直接展示你的 openid，照抄填入即可。
+    @filter.regex(r"^更新视频库")
     @filter.event_message_type(EventMessageType.GROUP_MESSAGE)
     async def on_update_library(self, event: AstrMessageEvent):
         owner = str(self._cfg("owner_qq", "") or "")
         if not owner:
             yield event.plain_result(
-                "主人还没配置 owner_qq，请先在插件设置里填上你的QQ号。"
+                "主人还没配置 owner_qq，请先在插件设置里填写。\n"
+                "（qq_official 下填 openid：触发一次本指令被拒，提示语会显示你的 openid）"
             )
             event.stop_event()
             return
-        if str(event.get_sender_id()) != owner:
-            yield event.plain_result("只有主人可以更新视频库哦。")
+        sid = str(event.get_sender_id())
+        if sid != owner:
+            yield event.plain_result(
+                f"只有主人可以更新视频库哦。\n你的身份标识：{sid}\n"
+                f"若是你本人，请把该标识填入插件配置 owner_qq。"
+            )
             event.stop_event()
             return
         self._video_library = _video_library_load()
@@ -89,10 +98,11 @@ class DagoujiaoPlugin(Star):
         yield event.plain_result(f"视频库已更新，共 {count} 条。")
         event.stop_event()
 
-    # ===== 视频库：大狗 音乐（随机抽一条发出来） =====
+    # ===== 视频库：音乐（随机抽一条发出来） =====
+    # 触发词：音乐（不含"大狗"前缀）。
     # 顺序：固定"大狗听音乐"图（images/listen.png，主人素材里的固定状态图）
-    #      → 视频封面 → 链接文字 → 试听语音（若有）。必须定义在 on_dagou 之前。
-    @filter.regex(r"^大狗[ ]*音乐")
+    #      → 视频封面 → 链接文字 → 试听语音（若有）。
+    @filter.regex(r"^音乐")
     @filter.event_message_type(EventMessageType.GROUP_MESSAGE)
     async def on_music(self, event: AstrMessageEvent):
         videos = self._video_library.get("videos") or []
@@ -102,12 +112,24 @@ class DagoujiaoPlugin(Star):
             return
         v = random.choice(videos)
 
-        # 1. 固定"大狗听音乐"图（状态图，同"叫/不叫"图片的性质）
-        music_img = _img(self._cfg("music_image", "listen.png"))
-        if os.path.isfile(music_img):
+        # 1. 固定"大狗听音乐"图（状态图）。旧版本配置可能把 music_image 缓存成了
+        #    music.png，这里做多候选兜底：配置值 → listen.png → music.png。
+        music_img = None
+        for name in [
+            self._cfg("music_image", "listen.png"),
+            "listen.png",
+            "music.png",
+        ]:
+            p = _img(name)
+            if os.path.isfile(p):
+                music_img = p
+                break
+        if music_img:
             yield event.image_result(music_img)
         else:
-            logger.warning(f"未找到大狗听音乐图 {music_img}，跳过开头图")
+            logger.warning(
+                "未找到大狗听音乐固定图（music_image/listen.png），跳过开头图"
+            )
 
         # 2. 视频封面
         cover = v.get("cover") or ""
