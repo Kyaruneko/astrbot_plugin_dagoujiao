@@ -33,13 +33,15 @@ NOTE_TEXT = (
     "@大狗后，输入以下内容\n"
     "今日运势---进行签到求运\n"
     "开箱 数量 XXX箱---进行cs开箱\n"
+    "/steam查价 游戏名---游戏价格查询\n"
     "大狗大狗请叫叫---大狗叫\n"
     "更多内容询问炸鱼哥"
 )
 
 # 水群默认参数（可通过插件 _conf_schema.json 配置覆盖）
-DEFAULT_WATER_MIN_HOURS = 2  # 两次水群的最小间隔（小时）
-DEFAULT_WATER_MAX_HOURS = 5  # 两次水群的最大间隔（小时）
+# 测试阶段默认 5~8 分钟一条；正式使用建议改回小时级。
+DEFAULT_WATER_MIN_MINUTES = 5  # 两次水群的最小间隔（分钟）
+DEFAULT_WATER_MAX_MINUTES = 8  # 两次水群的最大间隔（分钟）
 DEFAULT_WATER_PROBABILITY = 1.0  # 到点时实际执行水群的概率
 DEFAULT_STEAL_OPEN_PROBABILITY = 0.3  # 水群时改为"偷偷开箱"的概率
 RECENT_WINDOW_SECONDS = 24 * 3600  # 未标记目标时，"最近活跃"群的时间窗口
@@ -90,7 +92,7 @@ def _build_outcome_chain() -> list:
     return chain
 
 
-@register("astrbot_plugin_dagoujiao", "Kyaruneko", "大狗大狗请叫叫", "1.10.0")
+@register("astrbot_plugin_dagoujiao", "Kyaruneko", "大狗大狗请叫叫", "1.10.1")
 class DagoujiaoPlugin(Star):
     def __init__(self, context: Context, config: dict | None = None):
         super().__init__(context)
@@ -258,11 +260,11 @@ class DagoujiaoPlugin(Star):
     async def _water_loop(self):
         while True:
             try:
-                interval = random.uniform(
-                    self._cfg("water_interval_min_hours", DEFAULT_WATER_MIN_HOURS),
-                    self._cfg("water_interval_max_hours", DEFAULT_WATER_MAX_HOURS),
+                interval_minutes = random.uniform(
+                    self._cfg("water_interval_min_minutes", DEFAULT_WATER_MIN_MINUTES),
+                    self._cfg("water_interval_max_minutes", DEFAULT_WATER_MAX_MINUTES),
                 )
-                await asyncio.sleep(interval * 3600)
+                await asyncio.sleep(interval_minutes * 60)
                 if (
                     random.random()
                     >= self._cfg("water_probability", DEFAULT_WATER_PROBABILITY)
