@@ -28,10 +28,10 @@ class DagoujiaoPlugin(Star):
     async def initialize(self):
         """可选择实现异步的插件初始化方法，当实例化该插件类之后会自动调用该方法。"""
 
-    # 纯插件触发：只要消息里出现"大狗"（识别到这个梗），就直接由本插件随机做出反应。
+    # 纯插件触发：消息以"大狗"开头（识别到这个梗）时，就直接由本插件随机做出反应。
     # 完全不依赖 @ / 唤醒词，也不调用 AI Agent / 大模型，因此不会有任何模型人格插嘴回复，
     # 也不会产生 token 消耗。末尾的 stop_event() 会终止事件传播，确保后续 AI 链路彻底不介入。
-    @filter.regex(r"大狗")
+    @filter.regex(r"^大狗")
     async def on_dagou(self, event: AstrMessageEvent):
         outcome = random.choices(
             ["bark", "nobark", "mute", "smile"],
