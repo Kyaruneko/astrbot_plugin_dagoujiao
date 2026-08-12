@@ -92,7 +92,7 @@ def _build_outcome_chain() -> list:
     return chain
 
 
-@register("astrbot_plugin_dagoujiao", "Kyaruneko", "大狗大狗请叫叫", "1.10.1")
+@register("astrbot_plugin_dagoujiao", "Kyaruneko", "大狗大狗请叫叫", "1.10.2")
 class DagoujiaoPlugin(Star):
     def __init__(self, context: Context, config: dict | None = None):
         super().__init__(context)
@@ -294,6 +294,12 @@ class DagoujiaoPlugin(Star):
     async def _send_chain(self, session_str: str, components: list):
         """主动向指定群会话发送一条消息链。"""
         try:
+            platform_id, _, session_id = session_str.split(":", 2)
+            platform = self.context.get_platform_inst(platform_id)
+            if platform is not None and hasattr(platform, "remember_session_scene"):
+                # qq_official 主动群推送要求该会话 scene 为 "group"（否则视为无 msg_id 的越权发送被跳过）。
+                # scene 是内存缓存，AstrBot 重启后会清空，主动发送前先补记一次，保证重启后也能水群。
+                platform.remember_session_scene(session_id, "group")
             ok = await self.context.send_message(
                 session_str,
                 MessageChain(chain=components),
