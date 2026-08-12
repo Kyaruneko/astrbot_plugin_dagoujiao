@@ -2,8 +2,8 @@ import os
 import random
 
 from astrbot.api.event import filter, AstrMessageEvent
-from astrbot.api.star import Context, Star, register
 from astrbot.api.message_components import Record
+from astrbot.api.star import Context, Star, register
 
 # 图片 / 音频资源目录（本插件目录下的 images/ 与 audios/ 文件夹）
 # 音频为真 PCM wav（16bit 单声道 24kHz），发送时 ensure_wav() 会跳过 ffmpeg 转换，
@@ -20,7 +20,7 @@ def _audio(name: str) -> str:
     return os.path.join(AUDIO_DIR, name)
 
 
-@register("astrbot_plugin_dagoujiao", "Kyaruneko", "大狗大狗请叫叫", "1.6.0")
+@register("astrbot_plugin_dagoujiao", "Kyaruneko", "大狗大狗请叫叫", "1.7.0")
 class DagoujiaoPlugin(Star):
     def __init__(self, context: Context):
         super().__init__(context)
@@ -28,16 +28,19 @@ class DagoujiaoPlugin(Star):
     async def initialize(self):
         """可选择实现异步的插件初始化方法，当实例化该插件类之后会自动调用该方法。"""
 
-    # 注册正则过滤器。当用户发送的消息中包含 "大狗" 时触发（不受唤醒词约束）。
-    @filter.regex(r"大狗")
-    async def dagoujiao(self, event: AstrMessageEvent):
-        """大狗叫/不叫：按概率随机回复。每个部分（图片 / 文字 / 语音）分别发送一条消息。
+    # 注册为 Agent 可调用的 LLM 工具。由大模型根据对话语境自行判断是否触发，
+    # 不再依赖 @ 或关键词正则，避免误触/漏触。调用后会直接向会话发送图片/文字/语音。
+    @filter.llm_tool(name="dagou_jiao")
+    async def dagou_jiao(self, event: AstrMessageEvent):
+        """当用户在对话中提及"大狗"这个梗、让大狗叫/不叫、或者语境适合让"大狗"这个角色回应时，调用本工具让大狗随机做出反应。
 
-        概率分配：
-        - 叫    45%（细分：bb1 普通叫 70% / bb2 带劲的叫 30%）
-        - 不叫  45%（随机 nobb1 / nobb2）
-        - mute   5%（只发图片，无下文）
-        - smile  5%（图片 + 说"笑"）
+        大狗的反应是概率性的，共四种：
+        - 叫（45%）：发送"叫"的图片 + 文字 + 狗叫声语音
+        - 不叫（45%）：发送"不叫"的图片 + 文字"不叫"（部分情况附语音）
+        - 沉默（5%）：只发送一张"沉默"的图片，什么都不说
+        - 笑（5%）：发送"笑"的图片 + 文字"笑"
+
+        图片 / 文字 / 语音会分别发送给用户。调用本工具即可，无需再向用户确认。
         """
         outcome = random.choices(
             ["bark", "nobark", "mute", "smile"],
@@ -48,12 +51,15 @@ class DagoujiaoPlugin(Star):
             # 叫：细分 bb1（普通叫，文字"叫叫叫"）/ bb2（带劲的叫，文字"叫"），附对应语音
             bark_img = random.choices(["bb1.png", "bb2.jpg"], weights=[70, 30])[0]
             if bark_img == "bb1.png":
-                text, audio = "叫叫叫", "bb1.wav"
+                text, audio, summary = "叫叫叫", "bb1.wav", "大狗叫了（普通地叫）"
             else:
-                text, audio = "叫", "bb2.wav"
+                text, audio, summary = "叫", "bb2.wav", "大狗非常带劲地叫了"
             yield event.image_result(_img(bark_img))  # 图片
             yield event.plain_result(text)  # 文字
-            yield event.chain_result([Record.fromFileSystem(_audio(audio))])  # 语音
+            yield event.chain_result(  # 语音
+                [Record.fromFileSystem(_audio(audio))],
+            )
+            yield summary
         elif outcome == "nobark":
             # 不叫：随机 nobb1（附语音）/ nobb2（无语音），并说"不叫"
             nobb_img = random.choice(["nobb1.png", "nobb2.png"])
@@ -63,15 +69,16 @@ class DagoujiaoPlugin(Star):
                 yield event.chain_result(  # 语音（nobb1 才有）
                     [Record.fromFileSystem(_audio("nobb1.wav"))],
                 )
+            yield "大狗不叫了"
         elif outcome == "mute":
             # mute：只发图片，发完就结束，无下文
             yield event.image_result(_img("mute.jpg"))
+            yield "大狗沉默了，什么都没有说"
         else:
             # smile：发图片，然后说"笑"
             yield event.image_result(_img("smile.png"))
             yield event.plain_result("笑")
-
-        event.stop_event()  # 停止事件传播，防止后续再调用 LLM/AI Agent
+            yield "大狗笑了"
 
     async def terminate(self):
         """可选择实现异步的插件销毁方法，当插件被卸载/停用时会调用。"""
