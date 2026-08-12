@@ -19,6 +19,7 @@ NOTE_TEXT = (
     "@大狗后，输入以下内容\n"
     "今日运势---进行签到求运\n"
     "开箱 数量 XXX箱---进行cs开箱\n"
+    "/steam查价 游戏名---游戏价格查询\n"
     "大狗大狗请叫叫---大狗叫\n"
     "更多内容询问炸鱼哥"
 )
@@ -32,7 +33,7 @@ def _audio(name: str) -> str:
     return os.path.join(AUDIO_DIR, name)
 
 
-@register("astrbot_plugin_dagoujiao", "Kyaruneko", "大狗大狗请叫叫", "1.9.1")
+@register("astrbot_plugin_dagoujiao", "Kyaruneko", "大狗大狗请叫叫", "1.9.2")
 class DagoujiaoPlugin(Star):
     def __init__(self, context: Context):
         super().__init__(context)
