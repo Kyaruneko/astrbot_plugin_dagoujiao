@@ -1,0 +1,44 @@
+{
+  "water_enabled": {
+    "type": "bool",
+    "description": "开启不定时水群",
+    "hint": "是否开启大狗不定时水群功能（默认开启）",
+    "default": true
+  },
+  "water_interval_min_hours": {
+    "type": "int",
+    "description": "水群间隔下限(小时)",
+    "hint": "两次水群之间的最小间隔小时数（默认 2）",
+    "default": 2
+  },
+  "water_interval_max_hours": {
+    "type": "int",
+    "description": "水群间隔上限(小时)",
+    "hint": "两次水群之间的最大间隔小时数（默认 5）",
+    "default": 5
+  },
+  "water_probability": {
+    "type": "float",
+    "description": "水群触发概率",
+    "hint": "到点时实际执行水群的概率，0-1（默认 1.0）",
+    "default": 1.0
+  },
+  "steal_open_enabled": {
+    "type": "bool",
+    "description": "允许大狗偷偷开箱",
+    "hint": "水群时是否可能偷偷调用 CS 开箱插件开箱（默认开启）",
+    "default": true
+  },
+  "steal_open_probability": {
+    "type": "float",
+    "description": "偷偷开箱概率",
+    "hint": "水群时改为偷偷开箱的概率，0-1（默认 0.3）",
+    "default": 0.3
+  },
+  "steal_open_box": {
+    "type": "string",
+    "description": "偷偷开箱的箱名",
+    "hint": "大狗偷偷开箱时开哪个箱子，留空则随机选一个（默认空）",
+    "default": ""
+  }
+}
