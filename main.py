@@ -92,7 +92,7 @@ def _build_outcome_chain() -> list:
     return chain
 
 
-@register("astrbot_plugin_dagoujiao", "Kyaruneko", "大狗大狗请叫叫", "1.10.2")
+@register("astrbot_plugin_dagoujiao", "Kyaruneko", "大狗大狗请叫叫", "1.10.3")
 class DagoujiaoPlugin(Star):
     def __init__(self, context: Context, config: dict | None = None):
         super().__init__(context)
@@ -124,6 +124,27 @@ class DagoujiaoPlugin(Star):
             return self.config.get(key, default)
         except Exception:
             return default
+
+    def _describe_components(self, components: list) -> str:
+        """生成消息链组件的简要描述，用于水群诊断日志。"""
+        descs = []
+        for c in components:
+            name = type(c).__name__
+            file = getattr(c, "file", None) or getattr(c, "path", None) or ""
+            if file:
+                size = ""
+                try:
+                    if os.path.isfile(file):
+                        size = f" {os.path.getsize(file)}B"
+                except OSError:
+                    pass
+                descs.append(f"{name}({os.path.basename(file)}{size})")
+            elif getattr(c, "text", None):
+                descs.append(f"Plain({str(c.text)[:30]})")
+            else:
+                url = getattr(c, "url", None) or ""
+                descs.append(f"{name}({str(url)[:40]})")
+        return "; ".join(descs) if descs else "(空)"
 
     # ===== 群会话记录（水群目标） =====
     def _load_water_data(self) -> dict:
@@ -222,6 +243,61 @@ class DagoujiaoPlugin(Star):
             yield event.plain_result("大狗本来也没在这个群水群。")
         event.stop_event()
 
+    # ===== 水群诊断：大狗水群测试 =====
+    # 用于定位 qq_official "主动上传图片 invalid request" 的问题：把各张水群图片逐张走一遍
+    # 主动发送通道，哪个失败就说明哪张图在服务器上存在问题（文件缺失/损坏/格式不支持）。
+    # 注意：必须定义在 on_dagou 之前，否则会被 on_dagou 的 ^大狗 正则抢先匹配。
+    @filter.regex(r"^大狗水群测试")
+    @filter.event_message_type(EventMessageType.GROUP_MESSAGE)
+    async def on_water_test(self, event: AstrMessageEvent):
+        self._platform_meta[event.get_platform_id()] = event.platform_meta
+        self._remember_group(
+            event.unified_msg_origin,
+            event.get_platform_id(),
+            event.get_session_id(),
+        )
+        text = (event.message_str or "").strip()
+        parts = text.split(None, 1)
+        name = parts[1].strip() if len(parts) > 1 else None
+        target = event.unified_msg_origin
+
+        if name and name in ("cs", "开箱", "偷偷开箱"):
+            ok = await self._do_steal_open(target)
+            yield event.plain_result(
+                f"偷偷开箱{'成功' if ok else '失败（详见日志）'}"
+            )
+            event.stop_event()
+            return
+
+        if name:
+            path = _img(name) if os.path.isfile(_img(name)) else name
+            ok = await self._send_chain(target, [Image.fromFileSystem(path)])
+            yield event.plain_result(
+                f"测试图片 {os.path.basename(path)}: "
+                f"{'发送成功' if ok else '发送失败（详见日志）'}"
+            )
+            event.stop_event()
+            return
+
+        results = []
+        for fname in [
+            "bb1.png",
+            "bb2.jpg",
+            "nobb1.png",
+            "nobb2.png",
+            "mute.jpg",
+            "smile.png",
+        ]:
+            ok = await self._send_chain(
+                target, [Image.fromFileSystem(_img(fname))]
+            )
+            results.append(f"{fname}: {'OK' if ok else 'FAIL'}")
+            await asyncio.sleep(1)
+        yield event.plain_result(
+            "水群图片逐个测试结果：\n" + "\n".join(results)
+        )
+        event.stop_event()
+
     # ===== 行为一：消息以"大狗"开头，本插件直接随机反应 =====
     # 完全不依赖 @ / 唤醒词，也不调用 AI Agent / 大模型，因此不会有任何模型人格插嘴回复，
     # 也不会产生 token 消耗。末尾的 stop_event() 会终止事件传播，确保后续 AI 链路彻底不介入。
@@ -291,9 +367,13 @@ class DagoujiaoPlugin(Star):
             logger.info("偷偷开箱失败，退回普通叫/不叫")
         await self._send_chain(session_str, _build_outcome_chain())
 
-    async def _send_chain(self, session_str: str, components: list):
-        """主动向指定群会话发送一条消息链。"""
+    async def _send_chain(self, session_str: str, components: list) -> bool:
+        """主动向指定群会话发送一条消息链。发送成功返回 True。"""
         try:
+            logger.info(
+                f"水群发送 -> {session_str} 组件: "
+                f"{self._describe_components(components)}"
+            )
             platform_id, _, session_id = session_str.split(":", 2)
             platform = self.context.get_platform_inst(platform_id)
             if platform is not None and hasattr(platform, "remember_session_scene"):
@@ -306,8 +386,12 @@ class DagoujiaoPlugin(Star):
             )
             if not ok:
                 logger.warning(f"水群发送失败或未找到平台: {session_str}")
+            return ok
         except Exception:
-            logger.exception("水群发送异常")
+            logger.exception(
+                f"水群发送异常，组件: {self._describe_components(components)}"
+            )
+            return False
 
     async def _do_steal_open(self, session_str: str) -> bool:
         """调用 CS 开箱插件，让大狗自己偷偷开一箱。返回是否成功完成。"""
